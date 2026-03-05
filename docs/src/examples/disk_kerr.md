@@ -39,19 +39,28 @@ camera = PinholeCamera(position = [0.0, 500, π/2 - π/20, 0.0],
     vertical_number_of_pixels = 200)
 ```
 
-#### 5. Create the initial data
+#### 5. Create the configurations
+
+```julia
+configurations = VacuumOTEConfigurations(spacetime = spacetime,
+    camera = camera,
+    radiative_model = disk,
+    unit_mass_in_solar_masses = 1e7)
+```
+
+#### 6. Create the initial data
 
 ```julia
 initial_data = initialize(configurations)
 ```
 
-#### 6. Set up the callback
+#### 7. Set up the callback
 
 ```julia
 cb, cbp = callback_setup(configurations; rhorizon_bound = 2e-3) #... or, define your own cb and cbp
 ```
 
-#### 7. Run the simulation
+#### 8. Run the simulation
 
 ```julia
 run = integrate(initial_data,
@@ -63,14 +72,14 @@ run = integrate(initial_data,
     abstol = 1e-8)
 ```
 
-#### 8. Extract the results
+#### 9. Extract the results
 
 ```julia
 output_data = run.output_data
 Iobs = observed_bolometric_intensities(initial_data, output_data, configurations)
 ```
 
-#### 9. Visualize the results
+#### 10. Visualize the results
 
 ```julia
 using CairoMakie
