@@ -249,6 +249,34 @@ function photon_package_weight(position,
     error("photon_package_weight not defined for this model.")
 end
 
+function rest_frame_absorptivity!(αε,
+    position,
+    ε,
+    metric,
+    spacetime,
+    model,
+    coords_top)
+    rest_frame_absorptivity!(αε, position, ε, model)
+end
+
+function rest_frame_absorptivity!(αε, position, ε, model)
+    error("rest_frame_absorptivity! not defined for this model.")
+end
+
+function rest_frame_emissivity!(jε,
+    position,
+    ε,
+    metric,
+    spacetime,
+    model,
+    coords_top)
+    rest_frame_emissivity!(jε, position, ε, model)
+end
+
+function rest_frame_emissivity!(jε, position, ε, model)
+    error("rest_frame_emissivity! not defined for this model.")
+end
+
 include("radiativeprocesses/thermalemission.jl")
 include("radiativeprocesses/bremsstrahlung.jl")
 include("radiativeprocesses/synchrotron.jl")
@@ -261,12 +289,23 @@ include("lamppostcorona.jl")
 include("iontorus.jl")
 include("dummyextendedregion.jl")
 include("dummymodel.jl")
+include("composite.jl")
 
 function unit_surface_normal!(vector, position, metric, metric_inverse, model, coords_top)
     surface_differential!(vector, position, model, coords_top)
     vector .= raise_index(vector, metric_inverse)
     normalize_spacelike!(vector, metric)
     return nothing
+end
+
+function rest_frame_four_velocity!(v,
+    position,
+    metric,
+    spacetime,
+    model,
+    coords_top,
+    ::AbstractSpacetimeCache)
+    rest_frame_four_velocity!(v, position, metric, spacetime, model, coords_top)
 end
 
 function rest_frame_four_velocity!(v,
@@ -309,7 +348,80 @@ function rest_frame_four_velocity!(v,
     coords_top,
     ::Nothing,
     model_cache::AbstractModelCache)
-    rest_frame_four_velocity!(v, position, metric, spacetime, model, coords_top, model_cache)
+    rest_frame_four_velocity!(v, position, metric, spacetime, model, coords_top)
+end
+
+function rest_frame_four_velocity!(v,
+    position,
+    metric,
+    spacetime,
+    model,
+    coords_top,
+    spacetime_cache::AbstractSpacetimeCache,
+    model_cache::AbstractModelCache)
+    rest_frame_four_velocity!(v, position, metric, spacetime, model, coords_top)
+end
+
+function surface_rest_frame_four_velocity!(v,
+    position,
+    metric,
+    spacetime,
+    model,
+    coords_top,
+    spacetime_cache,
+    model_cache)
+    surface_model = surface_radiative_model(model)
+    surface_cache = surface_model_cache(model, model_cache)
+    rest_frame_four_velocity!(v,
+        position,
+        metric,
+        spacetime,
+        surface_model,
+        coords_top,
+        spacetime_cache,
+        surface_cache)
+end
+
+function surface_rest_frame_specific_intensity(position,
+    momentum,
+    energy,
+    rest_frame_four_velocity,
+    metric,
+    spacetime,
+    model,
+    coords_top,
+    model_cache)
+    surface_model = surface_radiative_model(model)
+    surface_cache = surface_model_cache(model, model_cache)
+    return rest_frame_specific_intensity(position,
+        momentum,
+        energy,
+        rest_frame_four_velocity,
+        metric,
+        spacetime,
+        surface_model,
+        coords_top,
+        surface_cache)
+end
+
+function surface_rest_frame_bolometric_intensity(position,
+    momentum,
+    rest_frame_four_velocity,
+    metric,
+    spacetime,
+    model,
+    coords_top,
+    model_cache)
+    surface_model = surface_radiative_model(model)
+    surface_cache = surface_model_cache(model, model_cache)
+    return rest_frame_bolometric_intensity(position,
+        momentum,
+        rest_frame_four_velocity,
+        metric,
+        spacetime,
+        surface_model,
+        coords_top,
+        surface_cache)
 end
 
 function rest_frame_bolometric_intensity(position,

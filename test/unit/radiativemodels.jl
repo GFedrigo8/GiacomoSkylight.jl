@@ -63,3 +63,107 @@ using Skylight, Test
     vector = Skylight.lower_index(normal, metric)
     @test vector[2] / df[2] ≈ vector[4] / df[4]
 end
+
+@testset "Composite radiative model" begin
+    spacetime = SchwarzschildSpacetimeSphericalCoordinates(M = 1.0)
+    coords_top = coordinates_topology(spacetime)
+
+    volume_model = DummyExtendedRegion()
+    surface_model = DummyDisk(inner_radius = 6.0, outer_radius = 20.0)
+    model = CompositeRadiativeModel(volume_model = volume_model, surface_model = surface_model)
+
+    @test isa(Skylight.isvacuum(model), Skylight.NonVacuum)
+    @test Skylight.has_emitting_surface(model)
+    @test is_final_position_at_source([0.0, 10.0, π / 2, 0.0], spacetime, model)
+    @test !is_final_position_at_source([0.0, 30.0, π / 2, 0.0], spacetime, model)
+
+    gμν = metric([0.0, 10.0, π / 2, 0.0], spacetime)
+    volume_velocity = zeros(4)
+    rest_frame_four_velocity!(volume_velocity,
+        [0.0, 10.0, π / 2, 0.0],
+        gμν,
+        spacetime,
+        model,
+        coords_top)
+    @test volume_velocity == [1.0, 0.0, 0.0, 0.0]
+
+    cache = allocate_cache(model)
+    @test cache isa Skylight.CompositeRadiativeModelCache
+
+    camera = ImagePlane(distance = 100.0,
+        observer_inclination_in_degrees = 45.0,
+        horizontal_side = 1.0,
+        vertical_side = 1.0,
+        horizontal_number_of_pixels = 1,
+        vertical_number_of_pixels = 1)
+    configurations = NonVacuumOTEConfigurations(spacetime = spacetime,
+        radiative_model = model,
+        camera = camera,
+        observation_energies = [1e-8, 2e-8],
+        unit_mass_in_solar_masses = 1.0)
+    cbp = callback_parameters(spacetime, model, configurations; rhorizon_bound = 0.1)
+    @test cbp isa Skylight.BlackHoleAccretionDiskCallbackParameters
+
+    initial_data = zeros(12, 1)
+    output_data = zeros(12, 1)
+
+    pi = [0.0, 100.0, π / 2, 0.0]
+    pf = [0.0, 10.0, π / 2, 0.0]
+    energy_scale = sqrt(1.0 - 2.0 / pi[2])
+    ki = [-1.0 / energy_scale, -energy_scale, 0.0, 0.0]
+    kf = [-energy_scale / (1.0 - 2.0 / pf[2]), -energy_scale, 0.0, 0.0]
+    τ = [0.4, 0.8]
+    J = [1.2, 0.6]
+
+    initial_data[1:4, 1] .= pi
+    initial_data[5:8, 1] .= ki
+    output_data[1:4, 1] .= pf
+    output_data[5:8, 1] .= kf
+    output_data[9:10, 1] .= τ
+    output_data[11:12, 1] .= J
+
+    Iobs = observed_specific_intensities(initial_data, output_data, configurations)
+
+    observer_metric = metric(pi, spacetime)
+    emitter_metric = metric(pf, spacetime)
+    observer_four_velocity = static_four_velocity(observer_metric)
+    surface_four_velocity = zeros(4)
+    rest_frame_four_velocity!(surface_four_velocity,
+        pf,
+        emitter_metric,
+        spacetime,
+        surface_model,
+        coords_top)
+    q = scalar_product(ki, observer_four_velocity, observer_metric) /
+        scalar_product(kf, surface_four_velocity, emitter_metric)
+    expected = similar(configurations.observation_energies)
+    for (i, energy) in enumerate(configurations.observation_energies)
+        expected[i] = energy^3 * J[i] +
+                      exp(-τ[i]) * q^3 *
+                      rest_frame_specific_intensity(pf,
+            -kf,
+            energy / q,
+            surface_four_velocity,
+            emitter_metric,
+            spacetime,
+            surface_model,
+            coords_top)
+    end
+    @test Iobs[:, 1] ≈ expected
+
+    pinhole = PinholeCamera(position = pi,
+        horizontal_aperture_in_degrees = 1.0,
+        vertical_aperture_in_degrees = 1.0,
+        horizontal_number_of_pixels = 1,
+        vertical_number_of_pixels = 1)
+    pinhole_configurations = NonVacuumOTEConfigurations(spacetime = spacetime,
+        radiative_model = model,
+        camera = pinhole,
+        observation_energies = [1e-8, 2e-8],
+        unit_mass_in_solar_masses = 1.0)
+    Iobs_pinhole = observed_specific_intensities(initial_data,
+        output_data,
+        pinhole_configurations;
+        observer_four_velocity = observer_four_velocity)
+    @test Iobs_pinhole[:, 1] ≈ expected
+end

@@ -13,6 +13,15 @@ function isvacuum(::AbstractRadiativeModel)
 end
 isvacuum(::AbstractSurfaceEmissionModel) = Vacuum()
 
+has_emitting_surface(::AbstractRadiativeModel) = false
+has_emitting_surface(::AbstractSurfaceEmissionModel) = true
+
+volume_radiative_model(model::AbstractRadiativeModel) = model
+surface_radiative_model(model::AbstractSurfaceEmissionModel) = model
+
+volume_model_cache(::AbstractRadiativeModel, model_cache) = model_cache
+surface_model_cache(::AbstractRadiativeModel, model_cache) = model_cache
+
 # This is to avoid launching photons toward the interior of an opaque surface in the EtO method
 abstract type OpaqueInteriorSurfaceTrait end
 struct IsOpaqueInteriorSurface <: OpaqueInteriorSurfaceTrait end

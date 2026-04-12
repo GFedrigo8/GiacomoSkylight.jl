@@ -326,50 +326,183 @@ Compute observed specific intensities
 - `Iobs::AbstractMatrix`: A vector of observed specific intensities in CGS units for each ray, normalized by the distance to the image plane. The intensities are in CGS units.
 
 """
-#TODO add itr axes(Iobs)
-@kwdispatch observed_specific_intensities(initial_data::AbstractMatrix,
-    output_data::AbstractMatrix,
-    configurations::NonVacuumOTEConfigurations)
-
-@kwmethod function observed_specific_intensities(::AbstractMatrix,
-    output_data::AbstractMatrix,
-    configurations::NonVacuumOTEConfigurations;)
-    NE = length(configurations.observation_energies)
-    return @. observation_energies^3 * output_data[(9 + NE):end, :]
+function observed_specific_intensities(initial_data,
+    output_data,
+    configurations::NonVacuumOTEConfigurations;
+    kwargs...)
+    observed_specific_intensities(initial_data,
+        output_data,
+        configurations,
+        configurations.camera;
+        kwargs...)
 end
 
-@kwmethod function observed_specific_intensities(initial_data::AbstractMatrix,
+function observed_specific_intensities(initial_data::AbstractMatrix,
     output_data::AbstractMatrix,
-    configurations::NonVacuumOTEConfigurations;
-    observer_four_velocity)
+    configurations::NonVacuumOTEConfigurations,
+    ::ImagePlane;
+    tasks_per_thread::Int = 2)
     Iobs = postprocess_init(initial_data, output_data, configurations)
-    function task(chunk,
-        Iobs,
+    observation_energies = configurations.observation_energies
+    NE = length(observation_energies)
+    @. Iobs = observation_energies^3 * output_data[(9 + NE):end, :]
+    add_surface_boundary_term!(Iobs,
         initial_data,
         output_data,
-        configurations;
-        observer_four_velocity)
-        observer_metric = metric(configurations.camera.position, configurations.spacetime)
-        NE = length(configurations.observation_energies)
-        for i in chunk
-            @views begin
-                ki = initial_data[5:8, i]
+        configurations,
+        configurations.camera;
+        tasks_per_thread = tasks_per_thread)
+    return Iobs
+end
+
+function observed_specific_intensities(initial_data::AbstractMatrix,
+    output_data::AbstractMatrix,
+    configurations::NonVacuumOTEConfigurations,
+    camera::PinholeCamera;
+    observer_four_velocity = nothing,
+    tasks_per_thread::Int = 2)
+    Iobs = postprocess_init(initial_data, output_data, configurations)
+    observation_energies = configurations.observation_energies
+    spacetime = configurations.spacetime
+    NE = length(observation_energies)
+    nrays = size(initial_data, 2)
+    chunk_size = max(1, div(nrays, nthreads() * tasks_per_thread))
+    chunks = Iterators.partition(1:nrays, chunk_size)
+    @sync map(chunks) do chunk
+        Threads.@spawn begin
+            cache = postprocess_cache(configurations)
+            observer_metric!(cache, camera.position, spacetime)
+            observer_four_velocity!(cache, observer_four_velocity)
+            for i in chunk
+                @views ki = initial_data[5:8, i]
+                observer_rest_frame_energy = scalar_product(ki,
+                    cache.observer_four_velocity,
+                    cache.observer_metric)
+                @. Iobs[:, i] = (observation_energies * observer_rest_frame_energy)^3 *
+                                output_data[(9 + NE):end, i]
             end
-            observer_rest_frame_energy = scalar_product(ki,
-                observer_four_velocity,
-                observer_metric)
-            @. Iobs[:, i] = (observation_energies * observer_rest_frame_energy)^3 *
-                            output_data[(9 + NE):end, i]
         end
     end
-    tmap(task,
-        axes(Iobs, ndims(Iobs)),
-        Iobs,
+    add_surface_boundary_term!(Iobs,
         initial_data,
         output_data,
-        configurations;
+        configurations,
+        camera;
         observer_four_velocity = observer_four_velocity,
         tasks_per_thread = tasks_per_thread)
+    return Iobs
+end
+
+function add_surface_boundary_term!(Iobs,
+    initial_data::AbstractMatrix,
+    output_data::AbstractMatrix,
+    configurations::NonVacuumOTEConfigurations,
+    ::ImagePlane;
+    tasks_per_thread::Int = 2)
+    model = configurations.radiative_model
+    has_emitting_surface(model) || return Iobs
+
+    spacetime = configurations.spacetime
+    coords_top = coordinates_topology(spacetime)
+    observation_energies = configurations.observation_energies
+    NE = length(observation_energies)
+    nrays = size(initial_data, 2)
+    chunk_size = max(1, div(nrays, nthreads() * tasks_per_thread))
+    chunks = Iterators.partition(1:nrays, chunk_size)
+    @sync map(chunks) do chunk
+        Threads.@spawn begin
+            cache = postprocess_cache(configurations)
+            for i in chunk
+                @views begin
+                    pi = initial_data[1:4, i]
+                    ki = initial_data[5:8, i]
+                    pf = output_data[1:4, i]
+                    kf = output_data[5:8, i]
+                end
+                if !is_final_position_at_source(pf, spacetime, model)
+                    continue
+                end
+                boundary_metrics_and_four_velocities!(cache,
+                    pi,
+                    pf,
+                    spacetime,
+                    model,
+                    coords_top)
+                q = energies_quotient(ki, kf, cache)
+                for j in axes(observation_energies, 1)
+                    emitted_energy = observation_energies[j] / q
+                    Iobs[j, i] += exp(-output_data[8 + j, i]) * q^3 *
+                                  surface_rest_frame_specific_intensity(pf,
+                        -kf,
+                        emitted_energy,
+                        cache.rest_frame_four_velocity,
+                        cache.emitter_metric,
+                        spacetime,
+                        model,
+                        coords_top,
+                        cache.model_cache)
+                end
+            end
+        end
+    end
+    return Iobs
+end
+
+function add_surface_boundary_term!(Iobs,
+    initial_data::AbstractMatrix,
+    output_data::AbstractMatrix,
+    configurations::NonVacuumOTEConfigurations,
+    camera::PinholeCamera;
+    observer_four_velocity = nothing,
+    tasks_per_thread::Int = 2)
+    model = configurations.radiative_model
+    has_emitting_surface(model) || return Iobs
+
+    spacetime = configurations.spacetime
+    coords_top = coordinates_topology(spacetime)
+    observation_energies = configurations.observation_energies
+    nrays = size(initial_data, 2)
+    chunk_size = max(1, div(nrays, nthreads() * tasks_per_thread))
+    chunks = Iterators.partition(1:nrays, chunk_size)
+    @sync map(chunks) do chunk
+        Threads.@spawn begin
+            cache = postprocess_cache(configurations)
+            observer_metric!(cache, camera.position, spacetime)
+            observer_four_velocity!(cache, observer_four_velocity)
+            for i in chunk
+                @views begin
+                    ki = initial_data[5:8, i]
+                    pf = output_data[1:4, i]
+                    kf = output_data[5:8, i]
+                end
+                if !is_final_position_at_source(pf, spacetime, model)
+                    continue
+                end
+                boundary_emitter_metric_and_four_velocity!(cache,
+                    pf,
+                    spacetime,
+                    model,
+                    coords_top)
+                observer_rest_frame_energy = scalar_product(ki,
+                    cache.observer_four_velocity,
+                    cache.observer_metric)
+                q = energies_quotient(ki, kf, cache)
+                for j in axes(observation_energies, 1)
+                    emitted_energy = observation_energies[j] * observer_rest_frame_energy / q
+                    Iobs[j, i] += exp(-output_data[8 + j, i]) * q^3 *
+                                  surface_rest_frame_specific_intensity(pf,
+                        -kf,
+                        emitted_energy,
+                        cache.rest_frame_four_velocity,
+                        cache.emitter_metric,
+                        spacetime,
+                        model,
+                        coords_top,
+                        cache.model_cache)
+                end
+            end
+        end
+    end
     return Iobs
 end
 
