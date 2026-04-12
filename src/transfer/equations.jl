@@ -74,6 +74,8 @@ function transfer_equations(u::SVector{N,T}, p, t) where {N,T}
     rest_frame_four_velocity!(vμ, position, metric, spacetime, model, coords_top, spacetime_cache)
     rest_frame_energy = scalar_product(vμ, momentum, metric) #Without the negative sign because the momentum is past directed
     ε .= observation_energies * rest_frame_energy
+    fill!(αε, 0.0)
+    fill!(jε, 0.0)
     rest_frame_absorptivity!(αε, position, ε, metric, spacetime, model, coords_top)
     rest_frame_emissivity!(jε, position, ε, metric, spacetime, model, coords_top)
     return SVector{NE, T}(ε .* αε...),
@@ -81,4 +83,4 @@ function transfer_equations(u::SVector{N,T}, p, t) where {N,T}
 end
 
 geodesic_equations(u::AbstractVector, p, t) = geodesic_equations(to_static(u), p, t)
-transfer_equations(u::AbstractVector, p, t) = geodesic_equations(to_static(u), p, t)
+transfer_equations(u::AbstractVector, p, t) = transfer_equations(to_static(u), p, t)
