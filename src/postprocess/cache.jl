@@ -19,6 +19,26 @@ function metrics_and_four_velocities!(cache::ImagePlanePostProcessCache,
     return nothing
 end
 
+function boundary_metrics_and_four_velocities!(cache::ImagePlanePostProcessCache,
+    initial_position,
+    final_position,
+    spacetime,
+    model,
+    coords_top)
+    metric!(cache.observer_metric, initial_position, spacetime, cache.spacetime_cache)
+    metric!(cache.emitter_metric, final_position, spacetime, cache.spacetime_cache)
+    static_four_velocity!(cache.observer_four_velocity, cache.observer_metric)
+    surface_rest_frame_four_velocity!(cache.rest_frame_four_velocity,
+        final_position,
+        cache.emitter_metric,
+        spacetime,
+        model,
+        coords_top,
+        cache.spacetime_cache,
+        cache.model_cache)
+    return nothing
+end
+
 function unpack_views(cache::ImagePlanePostProcessCache)
     @views begin
         observer_metric = cache.observer_metric
@@ -62,6 +82,23 @@ function emitter_metric_and_four_velocity!(cache::PinholeCameraPostProcessCache,
     coords_top)
     metric!(cache.emitter_metric, final_position, spacetime, cache.spacetime_cache)
     rest_frame_four_velocity!(cache.rest_frame_four_velocity,
+        final_position,
+        cache.emitter_metric,
+        spacetime,
+        model,
+        coords_top,
+        cache.spacetime_cache,
+        cache.model_cache)
+    return nothing
+end
+
+function boundary_emitter_metric_and_four_velocity!(cache::PinholeCameraPostProcessCache,
+    final_position,
+    spacetime,
+    model,
+    coords_top)
+    metric!(cache.emitter_metric, final_position, spacetime, cache.spacetime_cache)
+    surface_rest_frame_four_velocity!(cache.rest_frame_four_velocity,
         final_position,
         cache.emitter_metric,
         spacetime,

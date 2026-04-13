@@ -1,6 +1,7 @@
 using Skylight, Test
 
 @testset "Thread" begin
+    expected_cache_count = Threads.maxthreadid()
     spacetime = KerrSpacetimeKerrSchildCoordinates(M = 1.0, a = 0.5)
     cache = Skylight.VacuumThreadCache(spacetime_cache = allocate_cache(spacetime),
         christoffel_cache = allocate_christoffel_cache(spacetime))
@@ -13,7 +14,7 @@ using Skylight, Test
     @test cache.christoffel_cache.D == zeros(4, 4, 4)
 
     cache = Skylight.vacuum_multi_thread_cache(spacetime)
-    @test length(cache) == Threads.nthreads()
+    @test length(cache) == expected_cache_count
     cache2 = cache[1]
 
     @test cache2.acceleration == zeros(4)
@@ -25,6 +26,7 @@ using Skylight, Test
 end
 
 @testset "Multi thread" begin
+    expected_cache_count = Threads.maxthreadid()
     spacetime = KerrSpacetimeKerrSchildCoordinates(M = 1.0, a = 0.5)
 
     model = CircularHotSpot(
@@ -55,7 +57,7 @@ end
 
     @test geo_cache.spacetime == spacetime
     @test geo_cache.cbp == cbp
-    @test length(geo_cache.multi_thread) == Threads.nthreads()
+    @test length(geo_cache.multi_thread) == expected_cache_count
     @test typeof(geo_cache.multi_thread[1]) ==
           Skylight.VacuumThreadCache{Nothing, Skylight.KerrChristoffelCache}
 end

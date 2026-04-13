@@ -30,3 +30,11 @@ end
 function callback(spacetime::AbstractSpacetime, model::AbstractRadiativeModel)
     callback(spacetime, model, coordinates_topology(spacetime))
 end
+
+function callback(spacetime, model::CompositeRadiativeModel, coords_top)
+    callback(spacetime, surface_radiative_model(model), coords_top)
+end
+
+function callback_parameters(spacetime, model::CompositeRadiativeModel, configurations; kwargs...)
+    callback_parameters(spacetime, surface_radiative_model(model), configurations; kwargs...)
+end

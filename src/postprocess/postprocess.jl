@@ -41,7 +41,7 @@ function postprocess_init(initial_data::AbstractMatrix,
     same_size(initial_data, output_data) ||
         throw(DimensionMismatch("The initial and output data must have the same size."))
     nrays = size(initial_data, 2)
-    NE = (size(initial_data, 1) - 8) / 2
+    NE = div(size(initial_data, 1) - 8, 2)
     array = zeros(NE, nrays)
     return array
 end
