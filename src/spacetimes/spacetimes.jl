@@ -43,6 +43,7 @@ include("gravastar.jl")
 include("rar.jl")
 include("numerical.jl")
 include("constantsmotion.jl")
+include("sks.jl")
 
 """
     metric(position::AbstractVector, spacetime::AbstractSpacetime)

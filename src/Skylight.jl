@@ -62,6 +62,7 @@ export AbstractSpacetime,
     AxionicBosonStarSpacetime,
     FluidStarSpacetime,
     GravastarSpacetime
+    SKSSpacetime
 
 export AbstractSpacetimeCache,
     AbstractChristoffelCache
