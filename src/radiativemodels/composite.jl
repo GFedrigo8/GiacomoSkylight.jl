@@ -84,7 +84,25 @@ function rest_frame_four_velocity!(vector,
     spacetime,
     model::CompositeRadiativeModel,
     coords_top,
-    spacetime_cache,
+    ::Nothing,
+    model_cache::CompositeRadiativeModelCache)
+    rest_frame_four_velocity!(vector,
+        position,
+        metric,
+        spacetime,
+        model.volume_model,
+        coords_top,
+        nothing,
+        model_cache.volume_cache)
+end
+
+function rest_frame_four_velocity!(vector,
+    position,
+    metric,
+    spacetime,
+    model::CompositeRadiativeModel,
+    coords_top,
+    spacetime_cache::AbstractSpacetimeCache,
     model_cache::CompositeRadiativeModelCache)
     rest_frame_four_velocity!(vector,
         position,
@@ -102,14 +120,18 @@ function rest_frame_absorptivity!(αε,
     metric,
     spacetime,
     model::CompositeRadiativeModel,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache::CompositeRadiativeModelCache)
     rest_frame_absorptivity!(αε,
         position,
         ε,
         metric,
         spacetime,
         model.volume_model,
-        coords_top)
+        coords_top,
+        spacetime_cache,
+        model_cache.volume_cache)
 end
 
 function rest_frame_emissivity!(jε,
@@ -118,14 +140,18 @@ function rest_frame_emissivity!(jε,
     metric,
     spacetime,
     model::CompositeRadiativeModel,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache::CompositeRadiativeModelCache)
     rest_frame_emissivity!(jε,
         position,
         ε,
         metric,
         spacetime,
         model.volume_model,
-        coords_top)
+        coords_top,
+        spacetime_cache,
+        model_cache.volume_cache)
 end
 
 function is_final_position_at_source(position, spacetime, model::CompositeRadiativeModel)
