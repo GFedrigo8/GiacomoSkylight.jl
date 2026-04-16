@@ -69,15 +69,16 @@ function transfer_equations(u::SVector{N,T}, p, t) where {N,T}
     vμ = cache.vμ
     metric = cache.metric
     spacetime_cache = cache.spacetime_cache
+    model_cache = cache.model_cache
 
     metric!(metric, position, spacetime)
-    rest_frame_four_velocity!(vμ, position, metric, spacetime, model, coords_top, spacetime_cache)
+    rest_frame_four_velocity!(vμ, position, metric, spacetime, model, coords_top, spacetime_cache, model_cache)
     rest_frame_energy = scalar_product(vμ, momentum, metric) #Without the negative sign because the momentum is past directed
     ε .= observation_energies * rest_frame_energy
     fill!(αε, 0.0)
     fill!(jε, 0.0)
-    rest_frame_absorptivity!(αε, position, ε, metric, spacetime, model, coords_top)
-    rest_frame_emissivity!(jε, position, ε, metric, spacetime, model, coords_top)
+    rest_frame_absorptivity!(αε, position, ε, metric, spacetime, model, coords_top, spacetime_cache, model_cache)
+    rest_frame_emissivity!(jε, position, ε, metric, spacetime, model, coords_top, spacetime_cache, model_cache)
     return SVector{NE, T}(ε .* αε...),
     SVector{NE, T}(jε ./ (ε .^ 2) .* exp.(-τε)...)
 end
