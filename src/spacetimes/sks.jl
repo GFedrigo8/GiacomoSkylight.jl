@@ -10,7 +10,6 @@ symmetric_mass_ratio(spacetime::AbstractSKSSpacetime) = reduced_mass(spacetime) 
 mass_difference(spacetime::AbstractSKSSpacetime) = spacetime.m[1] - spacetime.m[2]
 mass_relative_difference(spacetime::AbstractSKSSpacetime) = mass_difference(spacetime) / total_mass(spacetime)
 
-
 @with_kw struct SKSSpacetime <: AbstractSKSSpacetime
     m::Vector{Float64} #Masses of the two BHs
     pos1::Vector{Float64} #Position of the first BH
@@ -23,6 +22,15 @@ mass_relative_difference(spacetime::AbstractSKSSpacetime) = mass_difference(spac
     @assert sqrt(chi1[1]^2 + chi1[2]^2 + chi1[3]^2) <= 1.0
     @assert sqrt(chi2[1]^2 + chi2[2]^2 + chi2[3]^2) <= 1.0
 end
+
+@with_kw struct SKSSpacetimeCache
+	ginv::Matrix{Float64}=zeros(4,4)
+end
+
+function allocate_cache(spacetime::AbstractSKSSpacetime)
+	return SKSSpacetimeCache()
+end
+
 
 function metric!(g::AbstractMatrix, position::AbstractVector, spacetime::SKSSpacetime)
 
