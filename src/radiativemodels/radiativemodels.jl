@@ -255,7 +255,9 @@ function rest_frame_absorptivity!(αε,
     metric,
     spacetime,
     model,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     rest_frame_absorptivity!(αε, position, ε, model)
 end
 
@@ -269,7 +271,9 @@ function rest_frame_emissivity!(jε,
     metric,
     spacetime,
     model,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     rest_frame_emissivity!(jε, position, ε, model)
 end
 

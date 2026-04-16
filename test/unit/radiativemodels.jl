@@ -115,6 +115,15 @@ end
     τ = [0.4, 0.8]
     J = [1.2, 0.6]
 
+    transfer_cache = Skylight.transfer_cache(configurations, cbp, 10.0)
+    dτ, dI = Skylight.transfer_equations(vcat(pf, kf, zeros(length(configurations.observation_energies))),
+        transfer_cache,
+        0.0)
+    @test length(dτ) == length(configurations.observation_energies)
+    @test length(dI) == length(configurations.observation_energies)
+    @test all(isfinite, dτ)
+    @test all(isfinite, dI)
+
     initial_data[1:4, 1] .= pi
     initial_data[5:8, 1] .= ki
     output_data[1:4, 1] .= pf

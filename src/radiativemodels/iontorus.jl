@@ -265,10 +265,12 @@ function rest_frame_absorptivity!(αε,
     g,
     spacetime,
     model::IonTorus,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     nothing
 end
-function rest_frame_emissivity!(jε, position, ε, g, spacetime, model::IonTorus, coords_top)
+function rest_frame_emissivity!(jε, position, ε, g, spacetime, model::IonTorus, coords_top, spacetime_cache, model_cache)
     rest_frame_emissivity!(model.radiative_process,
         jε,
         position,
@@ -276,7 +278,9 @@ function rest_frame_emissivity!(jε, position, ε, g, spacetime, model::IonTorus
         g,
         spacetime,
         model,
-        coords_top)
+        coords_top,
+        spacetime_cache,
+        model_cache)
 end
 
 function rest_frame_emissivity!(::Bremsstrahlung,
@@ -286,7 +290,9 @@ function rest_frame_emissivity!(::Bremsstrahlung,
     g,
     spacetime,
     model::IonTorus,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     r = position[2]
     ω = torus_normalized_potential(r, g, model)
     if ω > 0
@@ -309,7 +315,9 @@ function rest_frame_emissivity!(sy::Synchrotron,
     g,
     spacetime,
     model::IonTorus,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     r = position[2]
     ω = torus_normalized_potential(r, g, model)
     if ω > 0
@@ -335,7 +343,9 @@ function rest_frame_emissivity!(syb::SynchrotronAndBremsstrahlung,
     g,
     spacetime,
     model::IonTorus,
-    coords_top)
+    coords_top,
+    spacetime_cache,
+    model_cache)
     r = position[2]
     ω = torus_normalized_potential(r, g, model)
     if ω > 0

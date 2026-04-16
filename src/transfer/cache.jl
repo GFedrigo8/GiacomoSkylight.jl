@@ -30,15 +30,16 @@ function transfer_cache(::NonVacuum, configurations, cbp, τmax)
         τmax,
         observation_energies,
         length(observation_energies),
-        non_vacuum_multi_thread_cache(spacetime, NE))
+        non_vacuum_multi_thread_cache(spacetime, model, NE))
 end
 
-function non_vacuum_multi_thread_cache(spacetime, NE)
-    return [non_vacuum_single_thread_cache(spacetime, NE) for i in 1:maxthreadid()]
+function non_vacuum_multi_thread_cache(spacetime, model, NE)
+    return [non_vacuum_single_thread_cache(spacetime, model, NE) for i in 1:maxthreadid()]
 end
 
-function non_vacuum_single_thread_cache(spacetime, NE)
+function non_vacuum_single_thread_cache(spacetime, model, NE)
     return NonVacuumThreadCache(spacetime_cache = allocate_cache(spacetime),
+        model_cache = allocate_cache(model),
         christoffel_cache = allocate_christoffel_cache(spacetime),
         ε = zeros(NE),
         αε = zeros(NE),
